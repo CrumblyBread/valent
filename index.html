@@ -199,6 +199,68 @@
             font-weight: 700;
         }
 
+        /* Medvedík a falošný kurzor */
+        .bear {
+            position: fixed;
+            font-size: 50px;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .bear.active {
+            opacity: 1;
+        }
+
+        .fake-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            z-index: 9998;
+            pointer-events: none;
+            opacity: 0;
+            font-size: 24px;
+        }
+
+        .fake-cursor.visible {
+            opacity: 1;
+        }
+
+        .bear-message {
+            position: fixed;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #e91e63;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .bear-message.visible {
+            opacity: 1;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes bearWalk {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        .bear.walking {
+            animation: bearWalk 0.2s ease-in-out infinite;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 40px 30px;
@@ -225,6 +287,11 @@
 </head>
 <body>
     <div class="hearts-bg" id="hearts-bg"></div>
+    
+    <!-- Medvedík a falošný kurzor -->
+    <div class="bear" id="bear">🧸</div>
+    <div class="fake-cursor" id="fakeCursor">🖱️</div>
+    <div class="bear-message" id="bearMessage">Nie nie nie! 😤</div>
 
     <div class="container">
         <div class="question-screen" id="question-screen">
@@ -267,6 +334,142 @@
         }
 
         createHearts();
+
+        // Medvedík logika
+        const bear = document.getElementById('bear');
+        const fakeCursor = document.getElementById('fakeCursor');
+        const bearMessage = document.getElementById('bearMessage');
+        const noBtn = document.getElementById('noBtn');
+        
+        let bearActive = false;
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        const messages = [
+            "Nie nie nie! 😤",
+            "Toto tlačidlo nie! 🚫",
+            "Poď radšej na Áno! 💕",
+            "Nechaj to! 🐻",
+            "Sem sa nechodí! ❌",
+            "Zakázané! 🙅",
+            "Áno je lepšie! 💖"
+        ];
+
+        // Sledovanie pohybu myši
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            if (!bearActive) {
+                checkProximityToNo();
+            }
+        });
+
+        // Kontrola či je kurzor blízko tlačidla "Nie"
+        function checkProximityToNo() {
+            const btnRect = noBtn.getBoundingClientRect();
+            const btnCenterX = btnRect.left + btnRect.width / 2;
+            const btnCenterY = btnRect.top + btnRect.height / 2;
+            
+            const distance = Math.sqrt(
+                Math.pow(mouseX - btnCenterX, 2) + 
+                Math.pow(mouseY - btnCenterY, 2)
+            );
+            
+            // Ak je kurzor bližšie ako 120px k tlačidlu, príde medvedík
+            if (distance < 120) {
+                activateBear();
+            }
+        }
+
+        // Aktivácia medvedíka
+        function activateBear() {
+            if (bearActive) return;
+            bearActive = true;
+            
+            // Skryť skutočný kurzor
+            document.body.style.cursor = 'none';
+            
+            // Zobraziť falošný kurzor na pozícii myši
+            fakeCursor.style.left = mouseX + 'px';
+            fakeCursor.style.top = mouseY + 'px';
+            fakeCursor.classList.add('visible');
+            
+            // Medvedík príde z boku obrazovky
+            const startX = -60;
+            const startY = mouseY;
+            
+            bear.style.left = startX + 'px';
+            bear.style.top = startY + 'px';
+            bear.classList.add('active', 'walking');
+            
+            // Animácia - medvedík ide ku kurzoru
+            let bearX = startX;
+            const targetX = mouseX - 30;
+            
+            const walkInterval = setInterval(() => {
+                bearX += 15;
+                bear.style.left = bearX + 'px';
+                
+                if (bearX >= targetX) {
+                    clearInterval(walkInterval);
+                    grabCursor();
+                }
+            }, 30);
+        }
+
+        // Medvedík chytí kurzor
+        function grabCursor() {
+            // Zobraziť správu
+            bearMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
+            bearMessage.style.left = (parseFloat(bear.style.left) + 60) + 'px';
+            bearMessage.style.top = (parseFloat(bear.style.top) - 40) + 'px';
+            bearMessage.classList.add('visible');
+            
+            // Animácia - medvedík odnáša kurzor preč
+            setTimeout(() => {
+                const bearStartX = parseFloat(bear.style.left);
+                const cursorStartX = parseFloat(fakeCursor.style.left);
+                const cursorStartY = parseFloat(fakeCursor.style.top);
+                
+                let progress = 0;
+                const carryInterval = setInterval(() => {
+                    progress += 0.05;
+                    
+                    // Medvedík ide doprava von z obrazovky
+                    const newBearX = bearStartX + (progress * 400);
+                    bear.style.left = newBearX + 'px';
+                    
+                    // Kurzor ide s medvedíkom
+                    fakeCursor.style.left = (cursorStartX + (progress * 400)) + 'px';
+                    fakeCursor.style.top = (cursorStartY + Math.sin(progress * 10) * 10) + 'px';
+                    
+                    // Správa ide s medvedíkom
+                    bearMessage.style.left = (newBearX + 60) + 'px';
+                    
+                    if (progress >= 1) {
+                        clearInterval(carryInterval);
+                        resetBear();
+                    }
+                }, 30);
+            }, 500);
+        }
+
+        // Reset medvedíka
+        function resetBear() {
+            bear.classList.remove('active', 'walking');
+            fakeCursor.classList.remove('visible');
+            bearMessage.classList.remove('visible');
+            document.body.style.cursor = 'auto';
+            
+            // Presunúť tlačidlo "Nie" na iné miesto
+            moveButton();
+            
+            // Počkať pred ďalšou aktiváciou
+            setTimeout(() => {
+                bearActive = false;
+            }, 1000);
+        }
 
         // Tlačidlo "Nie" uteká pred kurzorom
         function moveButton() {
